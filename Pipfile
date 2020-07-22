@@ -16,7 +16,7 @@ ftfy = "*"
 typing-extensions = "*"
 coolname = "*"
 tabulate = "*"
-imgkit = "*"
+peewee = "*"
 
 [requires]
 python_version = "3.7"
