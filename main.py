@@ -108,14 +108,24 @@ def get_current_jobs(chat_id):
     return JobModel.select().where(JobModel.chat_id == chat_id)
 
 
-def register_job(job_fn: Callable[[str], Job], update: telegram.Update) -> str:
+def register_job(job_fn: Callable[[str], Job], update: telegram.Update, delta, courier, code) -> str:
     current_jobs = get_current_jobs(chat_id=update.message.chat_id)
     keys = [j.name for j in current_jobs]
     key = generate_key()
     while key in keys:
         key = generate_key()
 
+
+    job_db = JobModel.create(id=str(uuid.uuid4()),
+                             name=key,
+                             chat_id=update.message.chat_id,
+                             delta=delta,
+                             courier=courier,
+                             cod=code,
+                             last_update=None)
+    job_db.save()
     job_fn(str(key))
+
     return str(key)
 
 
@@ -125,22 +135,31 @@ def cancel_job(name: str, update: telegram.Update, context: telegram.ext.Callbac
         return False
 
     job[0].schedule_removal()  # TODO: check if job is already terminated
-    JobModel.get(JobModel.chat_id == update.message.chat_id, JobModel.name == name).delete_instance()
+    JobModel.get(JobModel.chat_id == update.effective_message.chat_id, JobModel.name == name).delete_instance()
     return True
+
+
+def get_jobs_inline(update: telegram.Update):
+    current_jobs: Iterator[JobModel] = get_current_jobs(update.message.chat_id)
+    markup = InlineKeyboardMarkup(
+        [[InlineKeyboardButton(text=f"{j.courier.upper()} {j.cod}",
+                               callback_data=j.name)] for j in current_jobs])
+
+    update.message.reply_text('Please select job or /cancel',
+                              reply_markup=markup)
 
 
 # noinspection PyUnusedLocal
 def shut_up(update: telegram.Update, context: telegram.ext.CallbackContext):
-    update.message.reply_text('Please enter name of listener to finish or /cancel', reply_markup=ReplyKeyboardRemove())
+    get_jobs_inline(update)
     return JOB_CANCEL
 
 
 def shut_up_get_job_name(update: telegram.Update, context: telegram.ext.CallbackContext):
-    name = str(update.message.text)
+    name = update.callback_query.data
     val = cancel_job(name, update, context)
     msg = f'Finished listener with name = {name}' if val else f'Error in finish job with name {name} '
-    context.bot.send_message(chat_id=update.message.chat_id,
-                             text=msg)
+    update.effective_message.edit_text(msg)
     return ConversationHandler.END
 
 
@@ -188,19 +207,13 @@ def select_code(update: telegram.Update, context: telegram.ext.CallbackContext):
 
     def listen_currier_job_fn(name: str):
         return context.job_queue.run_repeating(check_update,
-                                               interval=delta, first=0,
+                                               interval=delta,
+                                               first=0,
                                                context={"chat_id": chat_id, "name": name},
                                                name=name)
 
-    name_job = register_job(listen_currier_job_fn, update)
-    job_db = JobModel.create(id=str(uuid.uuid4()),
-                             name=name_job,
-                             chat_id=chat_id,
-                             delta=delta,
-                             courier=currier,
-                             cod=code,
-                             last_update=None)
-    job_db.save()
+    name_job = register_job(listen_currier_job_fn, update, delta, currier, code)
+
     context.bot.send_message(chat_id=update.message.chat_id,
                              text=f'Starting listen {currier.upper()} {code} with name {name_job}')
     return ConversationHandler.END
@@ -209,7 +222,7 @@ def select_code(update: telegram.Update, context: telegram.ext.CallbackContext):
 def get_data(job: JobModel, context: telegram.ext.CallbackContext):
     currier = job.courier
     cod = job.cod
-    scrapper = dispatcher[currier]
+    scrapper: Type[RawDataScrapper] = dispatcher[currier]
     instance = scrapper(cod)
     try:
         new_data = instance.get_data()
@@ -242,13 +255,7 @@ def check_update(context: telegram.ext.CallbackContext):
 
 # noinspection PyUnusedLocal
 def force_get(update: telegram.Update, context: telegram.ext.CallbackContext):
-    current_jobs: Iterator[JobModel] = get_current_jobs(update.message.chat_id)
-    markup = InlineKeyboardMarkup(
-        [[InlineKeyboardButton(text=f"{j.courier.upper()} {j.cod}",
-                               callback_data=j.name)] for j in current_jobs])
-
-    update.message.reply_text('Please select job or /cancel',
-                              reply_markup=markup)
+    get_jobs_inline(update)
     return SELECT_JOB
 
 
@@ -287,7 +294,7 @@ def main():
         entry_points=[CommandHandler('shut_up', shut_up)],
 
         states={
-            JOB_CANCEL: [MessageHandler(Filters.text & ~Filters.command, shut_up_get_job_name)],
+            JOB_CANCEL: [CallbackQueryHandler(shut_up_get_job_name, pass_user_data=True)],
 
         },
 
