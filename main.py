@@ -254,7 +254,7 @@ def check_update(context: telegram.ext.CallbackContext):
     if new_data != last_update:
         context.bot.send_message(chat_id=data["chat_id"],
                                  text=f'*UPDATED*: {currier.upper()} {cod}\n*FROM*: '
-                                      f'{last_update.upper()}\n*TO*: {new_data.upper()}',
+                                      f'{last_update.upper() if last_update is not None else "None"}\n*TO*: {new_data.upper()}',
                                  parse_mode=telegram.ParseMode.MARKDOWN
                                  )
         job_db.last_update = new_data
