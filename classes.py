@@ -1,14 +1,14 @@
-import json
 import re
 import signal
 import sys
-import time
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Union, List, Mapping
+import random as rnd
+from coolname import generate_slug
 
 import bs4
 import requests
-from deepdiff import DeepDiff
 
 
 # noinspection PyShadowingNames,PyUnusedLocal
@@ -28,10 +28,6 @@ class RawDataScrapper:
 
     def get_data(self) -> str:
         raise NotImplementedError()
-
-
-import random as rnd
-from coolname import generate_slug
 
 
 @dataclass
@@ -69,39 +65,16 @@ class PullmanBusCargoRaw(RawDataScrapper):
 class StarkenRaw(RawDataScrapper):
     cod: str
 
-    codes = {
-        '11': lambda x, y: x + y,
-        '12': lambda x, y: x - y,
-        '13': lambda x, y: x * y,
-    }
-
     def get_data(self) -> str:
         s = requests.Session()
         s.headers.update(
             {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:78.0) Gecko/20100101 Firefox/78.0'})
-        res = s.get("https://www.starken.cl/personas")
-        soup = bs4.BeautifulSoup(res.content, "lxml")
-        form = soup.find(id='kiteknology-seguimiento-formulario-front')
-        captcha_images = form.find('label', attrs={'for': 'edit-verificacion'}).find_all('img')
-        src_images_captcha = [i['src'] for i in captcha_images]
-        codes = [re.match('.*/(.*)\.png', s).group(1) for s in src_images_captcha]
-        left, op, right = codes
-        result = self.codes[op](int(left), int(right))
-        from collections import OrderedDict
-        request_data = OrderedDict()
-        request_data['codigo'] = self.cod
-        request_data['verificacion'] = ''
-        request_data['op'] = 'Buscar'
+        s.get("https://www.starken.cl/seguimiento")
+        res = s.get(f"https://api.starken-cloud.com/tracking/orden-flete/of/{self.cod}")
+        data = res.json()
+        updated_at = datetime.strptime(data["updated_at"], '%Y-%m-%dT%H:%M:%S.%fZ')
 
-        for i in form.find_all('input'):
-            request_data[i['name']] = i['value']
-        request_data['verificacion'] = str(int(result))
-        url = "https://www.starken.cl/seguimiento?" + '&'.join([f"{k}={v}" for k, v in request_data.items()])
-        res = s.get(url)
-        soup_2 = bs4.BeautifulSoup(res.content, "lxml")
-
-        result_q = soup_2.find(id='resultado-tabla-seguimiento').find('tbody').find('tr').find_all('td')
-        return f"{result_q[1].getText()}"
+        return f"{data['status']} {updated_at.strftime('%Y-%m-%d %H:%M')}"
 
 
 class ChileExpressRaw(RawDataScrapper):

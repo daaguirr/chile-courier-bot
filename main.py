@@ -173,9 +173,8 @@ def get_subscriptions(update: telegram.Update, context: telegram.ext.CallbackCon
     table = []
     for job in current_jobs:
         table.append([job.courier.upper(), job.cod])
-
+    update.message.reply_text("Generating...")
     table_image = generate_image(table, columns=['Courier 🚚', 'Code 🔑'])
-    print(table)
     update.message.reply_photo(table_image)
     return ConversationHandler.END
 
