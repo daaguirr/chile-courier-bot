@@ -4,7 +4,7 @@ import pathlib
 import random as rnd
 import string
 import uuid
-from typing import Callable, Dict, Type, Iterator, Optional, Tuple
+from typing import Callable, Dict, Iterator, Optional, Tuple, TypeVar
 
 # noinspection PyPackageRequirements
 import telegram.ext
@@ -46,12 +46,14 @@ time_dict = {
 keyboard_time_keyboard = [[k] for k in time_dict.keys()]
 time_regex = f"^({'|'.join(time_dict.keys())})$"
 
+DataScrapperType = TypeVar('DataScrapperType', bound=RawDataScrapper)
+
 if config["DEV"]:
-    dispatcher: Dict[str, Type[RawDataScrapper]] = {
+    dispatcher: Dict[str, Callable[[str], DataScrapperType]] = {
         'develop': lambda code: DevDataScrapper(code)
     }
 else:
-    dispatcher: Dict[str, Type[RawDataScrapper]] = {
+    dispatcher: Dict[str, Callable[[str], DataScrapperType]] = {
         'Chilexpress': lambda code: ChileExpressRaw(code),
         'Bluex': lambda code: BluexRaw(code),
         'PullmanBusCargo': lambda code: PullmanBusCargoRaw(code),
@@ -227,7 +229,7 @@ def select_code(update: telegram.Update, context: telegram.ext.CallbackContext):
 def get_data(job: JobModel, context: telegram.ext.CallbackContext):
     currier = job.courier
     cod = job.cod
-    scrapper: Type[RawDataScrapper] = dispatcher[currier]
+    scrapper: Callable[[str], DataScrapperType] = dispatcher[currier]
     instance = scrapper(cod)
     try:
         new_data = instance.get_data()
@@ -255,7 +257,8 @@ def check_update(context: telegram.ext.CallbackContext):
     if new_data != last_update:
         context.bot.send_message(chat_id=data["chat_id"],
                                  text=f'*UPDATED*: {currier.upper()} {cod}\n*FROM*: '
-                                      f'{last_update.upper() if last_update is not None else "None"}\n*TO*: {new_data.upper()}',
+                                      f'{last_update.upper() if last_update is not None else "None"}\n'
+                                      f'*TO*: {new_data.upper()}',
                                  parse_mode=telegram.ParseMode.MARKDOWN
                                  )
         job_db.last_update = new_data
