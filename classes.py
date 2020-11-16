@@ -70,7 +70,7 @@ class StarkenRaw(RawDataScrapper):
         s.headers.update(
             {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:78.0) Gecko/20100101 Firefox/78.0'})
         s.get("https://www.starken.cl/seguimiento")
-        res = s.get(f"https://api.starken-cloud.com/tracking/orden-flete/of/{self.cod}")
+        res = s.get(f"https://gateway.starken.cl/tracking/orden-flete-dte/of/{self.cod}")
         data = res.json()
         updated_at = datetime.strptime(data["updated_at"], '%Y-%m-%dT%H:%M:%S.%fZ')
 
