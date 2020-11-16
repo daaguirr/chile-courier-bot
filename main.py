@@ -232,10 +232,11 @@ def get_data(job: JobModel, context: telegram.ext.CallbackContext):
     try:
         new_data = instance.get_data()
     except Exception as e:
-        context.bot.send_message(chat_id=job.chat_id,
-                                 text=f"Error happening when trying to get data from {currier.upper()} {cod}")
-        context.bot.send_message(chat_id=job.chat_id,
-                                 text="This would be a invalid code, expired code or courier page error")
+        if job.last_update != "ERROR":
+            context.bot.send_message(chat_id=job.chat_id,
+                                     text=f"Error happening when trying to get data from {currier.upper()} {cod}")
+            context.bot.send_message(chat_id=job.chat_id,
+                                     text="This would be a invalid code, expired code or courier page error")
         logger.error(e)
         new_data = "ERROR"
     return new_data
