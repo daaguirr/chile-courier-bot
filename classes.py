@@ -1,14 +1,14 @@
-import re
+import json
+import random as rnd
 import signal
 import sys
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Union, List, Mapping
-import random as rnd
-from coolname import generate_slug
 
 import bs4
 import requests
+from coolname import generate_slug
 
 
 # noinspection PyShadowingNames,PyUnusedLocal
@@ -43,13 +43,36 @@ class BluexRaw(RawDataScrapper):
     cod: str
 
     def get_data(self) -> str:
-        res = requests.get(f"http://www.bluex.cl/nacional?documentos={self.cod}")
-        soup = bs4.BeautifulSoup(res.content, "lxml")
-        table = soup.find('table', attrs={'class': 'tableTracking'})
-        row = table.find('tbody').find('tr').find_all('td')
-        state = re.match(r".*Progreso(.*)", row[2].getText().strip('\n')).group(1)
-        date = re.match(r".*Evento(.*)", row[3].getText().strip('\n')).group(1)
-        return f"{date} {state}"
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:87.0) Gecko/20100101 Firefox/87.0',
+            'Accept': 'application/json, text/javascript, */*; q=0.01',
+            'Accept-Language': 'es-CL,es;q=0.8,en-US;q=0.5,en;q=0.3',
+            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+            'X-Requested-With': 'XMLHttpRequest',
+            'Origin': 'https://www.bluex.cl',
+            'DNT': '1',
+            'Connection': 'keep-alive',
+            'Referer': 'https://www.bluex.cl/seguimiento/?n_seguimiento=6899442620',
+            'Sec-GPC': '1',
+            'Pragma': 'no-cache',
+            'Cache-Control': 'no-cache',
+            'TE': 'Trailers',
+        }
+
+        data = {
+            'action': 'getTrackingInfo',
+            'n_seguimiento': self.cod
+        }
+
+        response = requests.post('https://www.bluex.cl/wp-admin/admin-ajax.php', headers=headers, data=data)
+
+        response_data = response.json()["data"]
+        data_raw = json.loads(response_data[0])
+
+        last_data = data_raw['s1']['listaDocumentos'][0]['ultimoPinchazo']
+        date = datetime.strptime(last_data["fecha"], '%Y%m%d%H%M%S').isoformat()
+
+        return f"{date} {last_data['nombreTipo']}"
 
 
 class PullmanBusCargoRaw(RawDataScrapper):
