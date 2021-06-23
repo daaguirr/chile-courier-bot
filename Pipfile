@@ -18,6 +18,7 @@ coolname = "*"
 tabulate = "*"
 peewee = "*"
 plotly = "*"
+numpy = "*"
 psutil = "*"
 matplotlib = "*"
 

@@ -4,13 +4,13 @@ import pathlib
 import random as rnd
 import string
 import uuid
-from typing import Callable, Dict, Iterator, Optional, Tuple, TypeVar
+from typing import Callable, Dict, Iterator, Optional, Tuple, TypeVar, Any
 
 # noinspection PyPackageRequirements
 import telegram.ext
 # noinspection PyPackageRequirements
 # noinspection PyPackageRequirements
-from telegram import ReplyKeyboardRemove, ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton, ParseMode
+from telegram import ReplyKeyboardRemove, ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton
 # noinspection PyPackageRequirements
 from telegram.ext import Updater, Job, ConversationHandler, CommandHandler, MessageHandler, Filters, \
     CallbackQueryHandler
@@ -19,7 +19,7 @@ from telegram.ext import Updater, Job, ConversationHandler, CommandHandler, Mess
 # noinspection PyUnresolvedReferences
 from classes import RawDataScrapper, DevDataScrapper, BluexRaw, PullmanBusCargoRaw, StarkenRaw, ChileExpressRaw
 from models import JobModel
-from tables import generate_image, old_generate_image
+from tables import old_generate_image
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
@@ -33,11 +33,12 @@ path = pathlib.Path(__file__).parent.absolute()
 with open(path.joinpath('config.json'), 'r') as f:
     config = json.load(f)
 
-SELECT_CURRIER, SELECT_TIME, SELECT_CODE, JOB_CANCEL, SELECT_JOB = range(5)
+SELECT_CURRIER, SELECT_TIME, SELECT_CODE, ENTER_DESC, JOB_CANCEL, SELECT_JOB = range(6)
 
 time_dict = {
     "1min": 60,
     "5min": 300,
+    "15min": 600,
     "1hr": 3600,
     "12hr": 12 * 3600,
     "24hr": 24 * 3600
@@ -113,7 +114,7 @@ def get_current_jobs(chat_id):
     return JobModel.select().where(JobModel.chat_id == chat_id)
 
 
-def register_job(job_fn: Callable[[str], Job], update: telegram.Update, delta, courier, code) -> str:
+def register_job(job_fn: Callable[[str], Job], update: telegram.Update, delta, courier, code, desc) -> str:
     current_jobs = get_current_jobs(chat_id=update.message.chat_id)
     keys = [j.name for j in current_jobs]
     key = generate_key()
@@ -126,6 +127,7 @@ def register_job(job_fn: Callable[[str], Job], update: telegram.Update, delta, c
                              delta=delta,
                              courier=courier,
                              cod=code,
+                             desc=desc,
                              last_update=None)
     job_db.save()
     job_fn(str(key))
@@ -174,24 +176,34 @@ def get_subscriptions(update: telegram.Update, context: telegram.ext.CallbackCon
     current_jobs: Iterator[JobModel] = get_current_jobs(update.message.chat_id)
     table = []
     for job in current_jobs:
-        table.append([job.courier.upper(), job.cod])
+        table.append([job.desc if job.desc is not None else '(null)', job.courier.upper(), job.cod, job.last_update])
     update.message.reply_text("Generating...")
-    table_image = old_generate_image(table, columns=['Courier', 'Code'])
+    table_image = old_generate_image(table, columns=['Description', 'Courier', 'Code', 'Last Update'])
     update.message.reply_photo(table_image)
     return ConversationHandler.END
 
 
 # noinspection PyUnusedLocal
 def subscribe(update: telegram.Update, context: telegram.ext.CallbackContext):
-    update.message.reply_text(text=f"Please enter currier",
+    update.message.reply_text(text=f"Please enter currier or /cancel",
                               reply_markup=ReplyKeyboardMarkup(keyboard_currier_keyboard, one_time_keyboard=True))
     return SELECT_CURRIER
 
 
 def select_currier(update: telegram.Update, context: telegram.ext.CallbackContext):
     context.user_data['currier'] = update.message.text
+    update.message.reply_text('Please enter tracking code to listen or /cancel', reply_markup=ReplyKeyboardRemove())
+
+    return SELECT_CODE
+
+
+def select_code(update: telegram.Update, context: telegram.ext.CallbackContext):
+    code: str = update.message.text
+    context.user_data['code'] = code
+
     update.message.reply_text('Please enter refresh time or /cancel',
                               reply_markup=ReplyKeyboardMarkup(keyboard_time_keyboard, one_time_keyboard=True))
+
     return SELECT_TIME
 
 
@@ -199,15 +211,17 @@ def select_time(update: telegram.Update, context: telegram.ext.CallbackContext):
     time_text = update.message.text
     time = time_dict[time_text]
     context.user_data['delta'] = time
-    update.message.reply_text('Please enter tracking code to listen or /cancel', reply_markup=ReplyKeyboardRemove())
-    return SELECT_CODE
+    update.message.reply_text('Please enter descriptive name to listener or /cancel',
+                              reply_markup=ReplyKeyboardRemove())
+    return ENTER_DESC
 
 
-def select_code(update: telegram.Update, context: telegram.ext.CallbackContext):
-    code: str = update.message.text
+def enter_desc(update: telegram.Update, context: telegram.ext.CallbackContext):
+    desc: str = update.message.text
     delta = context.user_data['delta']
     currier: str = context.user_data['currier']
-    chat_id: str = update.message.chat_id
+    code: str = context.user_data['code']
+    chat_id: int = update.message.chat_id
 
     del context.user_data['currier']
     del context.user_data['delta']
@@ -219,7 +233,7 @@ def select_code(update: telegram.Update, context: telegram.ext.CallbackContext):
                                                context={"chat_id": chat_id, "name": name},
                                                name=name)
 
-    register_job(listen_currier_job_fn, update, delta, currier, code)
+    register_job(listen_currier_job_fn, update, delta, currier, code, desc)
 
     context.bot.send_message(chat_id=update.message.chat_id,
                              text=f'Starting listen {currier.upper()} {code}')
@@ -245,17 +259,19 @@ def get_data(job: JobModel, context: telegram.ext.CallbackContext):
 
 def check_update(context: telegram.ext.CallbackContext):
     job: Job = context.job
-    data = job.context
+    data: Dict[str, Any] = job.context
     job_db: JobModel = JobModel.get(JobModel.chat_id == data["chat_id"], JobModel.name == data["name"])
 
     last_update = job_db.last_update
     currier = job_db.courier
     cod = job_db.cod
+    desc = job_db.desc
+
     new_data = get_data(job_db, context)
 
     if new_data != last_update:
         context.bot.send_message(chat_id=data["chat_id"],
-                                 text=f'*UPDATED*: {currier.upper()} {cod}\n*FROM*: '
+                                 text=f'*UPDATED*: {desc} ({currier.upper()} {cod})\n*FROM*: '
                                       f'{last_update.upper() if last_update is not None else "None"}\n'
                                       f'*TO*: {new_data.upper()}',
                                  parse_mode=telegram.ParseMode.MARKDOWN
@@ -318,8 +334,9 @@ def main():
 
         states={
             SELECT_CURRIER: [MessageHandler(Filters.regex(currier_regex), select_currier)],
+            SELECT_CODE: [MessageHandler(Filters.text & ~Filters.command, select_code)],
             SELECT_TIME: [MessageHandler(Filters.regex(time_regex), select_time)],
-            SELECT_CODE: [MessageHandler(Filters.text & ~Filters.command, select_code)]
+            ENTER_DESC: [MessageHandler(Filters.text & ~Filters.command, enter_desc)]
         },
 
         fallbacks=[CommandHandler('cancel', cancel)]

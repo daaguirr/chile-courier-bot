@@ -25,15 +25,27 @@ def old_generate_image(table_raw: List[List[Any]], columns: List[str]) -> io.Byt
     row_colors = ['#f1f1f2', 'w']
     header_color = '#40466e'
 
-    fig, ax = plt.subplots(figsize=(len(columns)*3, len(table_raw)))
-    ax.axis('off')
+    if len(table_raw) == 0:
+        cell_text = [['-'] * len(columns)]
+    else:
+        cell_text = [[str(item) for item in row] for row in table_raw]
+    print(cell_text)
+    # print((max(map(lambda x: len('.'.join(x)), cell_text))//2, len(table_raw)))
 
-    cell_text = [[str(item) for item in row] for row in table_raw]
+    figsize_x = max(map(lambda x: len('.'.join(x)), cell_text)) // 2
+    figsize_x = max(figsize_x, len('.'.join(columns)))
+    figsize_x = min(20,figsize_x)
+    figsize = (figsize_x, len(table_raw))
+    fig, ax = plt.subplots(figsize=figsize)
+    ax.axis('off')
 
     mpl_table = ax.table(cellText=cell_text, bbox=[0, 0, 1, 1], colLabels=columns)
 
     mpl_table.auto_set_font_size(False)
     mpl_table.set_fontsize(14)
+
+    for i in range(len(columns)):
+        mpl_table.auto_set_column_width(i)
 
     for k, cell in six.iteritems(mpl_table._cells):
         cell.set_edgecolor('w')
@@ -43,7 +55,8 @@ def old_generate_image(table_raw: List[List[Any]], columns: List[str]) -> io.Byt
         else:
             cell.set_facecolor(row_colors[k[0] % len(row_colors)])
 
+    fig.tight_layout()
     buf = io.BytesIO()
-    fig.savefig(buf, format='png')
+    fig.savefig(buf, format='png', dpi=300)
     buf.seek(0)
     return buf

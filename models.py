@@ -15,6 +15,7 @@ class JobModel(BaseModel):
     delta = CharField()
     courier = CharField()
     cod = CharField()
+    desc = CharField(null=True, default=None)
     last_update = CharField(null=True)
 
 
