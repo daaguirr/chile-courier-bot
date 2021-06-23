@@ -20,6 +20,7 @@ peewee = "*"
 plotly = "*"
 numpy = "*"
 psutil = "*"
+matplotlib = "*"
 
 [requires]
 python_version = "3.7"

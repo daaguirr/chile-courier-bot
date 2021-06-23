@@ -10,7 +10,7 @@ from typing import Callable, Dict, Iterator, Optional, Tuple, TypeVar
 import telegram.ext
 # noinspection PyPackageRequirements
 # noinspection PyPackageRequirements
-from telegram import ReplyKeyboardRemove, ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram import ReplyKeyboardRemove, ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton, ParseMode
 # noinspection PyPackageRequirements
 from telegram.ext import Updater, Job, ConversationHandler, CommandHandler, MessageHandler, Filters, \
     CallbackQueryHandler
@@ -19,7 +19,7 @@ from telegram.ext import Updater, Job, ConversationHandler, CommandHandler, Mess
 # noinspection PyUnresolvedReferences
 from classes import RawDataScrapper, DevDataScrapper, BluexRaw, PullmanBusCargoRaw, StarkenRaw, ChileExpressRaw
 from models import JobModel
-from tables import generate_image
+from tables import generate_image, old_generate_image
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
@@ -176,7 +176,7 @@ def get_subscriptions(update: telegram.Update, context: telegram.ext.CallbackCon
     for job in current_jobs:
         table.append([job.courier.upper(), job.cod])
     update.message.reply_text("Generating...")
-    table_image = generate_image(table, columns=['Courier 🚚', 'Code 🔑'])
+    table_image = old_generate_image(table, columns=['Courier', 'Code'])
     update.message.reply_photo(table_image)
     return ConversationHandler.END
 
@@ -236,9 +236,8 @@ def get_data(job: JobModel, context: telegram.ext.CallbackContext):
     except Exception as e:
         if job.last_update != "ERROR":
             context.bot.send_message(chat_id=job.chat_id,
-                                     text=f"Error happening when trying to get data from {currier.upper()} {cod}")
-            context.bot.send_message(chat_id=job.chat_id,
-                                     text="This would be a invalid code, expired code or courier page error")
+                                     text=f"Error happening when trying to get data from {currier.upper()} {cod}"
+                                          f"\nThis would be a invalid code, expired code or courier page error")
         logger.error(e)
         new_data = "ERROR"
     return new_data
