@@ -150,7 +150,7 @@ def cancel_job(name: str, update: telegram.Update, context: telegram.ext.Callbac
 def get_jobs_inline(update: telegram.Update):
     current_jobs: Iterator[JobModel] = get_current_jobs(update.message.chat_id)
     markup = InlineKeyboardMarkup(
-        [[InlineKeyboardButton(text=f"{j.courier.upper()} {j.cod}",
+        [[InlineKeyboardButton(text=f"{j.desc} ({j.courier.upper()} {j.cod})",
                                callback_data=j.name)] for j in current_jobs])
 
     update.message.reply_text('Please select job or /cancel',
