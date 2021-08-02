@@ -35,7 +35,8 @@ class DevDataScrapper(RawDataScrapper):
     last: str = generate_slug(4)
 
     def get_data(self) -> str:
-        self.last = rnd.choice([self.last, generate_slug(4)])
+        length = rnd.randint(4, 8)
+        self.last = rnd.choice([self.last, generate_slug(length)])
         return self.last
 
 

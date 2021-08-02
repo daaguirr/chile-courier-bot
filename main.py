@@ -37,9 +37,10 @@ SELECT_CURRIER, SELECT_TIME, SELECT_CODE, ENTER_DESC, JOB_CANCEL, SELECT_JOB = r
 
 time_dict = {
     "1min": 60,
-    "5min": 300,
-    "15min": 600,
-    "1hr": 3600,
+    "5min": 60 * 5,
+    "10min": 60 * 10,
+    "15min": 60 * 15,
+    "1hr": 60 * 60,
     "12hr": 12 * 3600,
     "24hr": 24 * 3600
 }

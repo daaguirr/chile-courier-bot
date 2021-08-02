@@ -1,4 +1,5 @@
 import io
+import math
 from typing import List, Any
 
 import plotly.figure_factory as ff
@@ -21,6 +22,10 @@ def generate_image(table_raw: List[List[Any]], columns: List[str]) -> io.BytesIO
     return buf
 
 
+DPI = 300
+FONT_SIZE = 14
+
+
 def old_generate_image(table_raw: List[List[Any]], columns: List[str]) -> io.BytesIO:
     row_colors = ['#f1f1f2', 'w']
     header_color = '#40466e'
@@ -32,17 +37,22 @@ def old_generate_image(table_raw: List[List[Any]], columns: List[str]) -> io.Byt
     print(cell_text)
     # print((max(map(lambda x: len('.'.join(x)), cell_text))//2, len(table_raw)))
 
-    figsize_x = max(map(lambda x: len('.'.join(x)), cell_text)) // 2
+    figsize_x = max(map(lambda x: len('.'.join(x)), cell_text))
     figsize_x = max(figsize_x, len('.'.join(columns)))
-    figsize_x = min(20,figsize_x)
-    figsize = (figsize_x, len(table_raw))
+    figsize_x = 4 * figsize_x * FONT_SIZE / DPI
+    figsize_y = len(table_raw)
+
+    figsize = (figsize_x, figsize_y)
+
+    print(figsize)
+
     fig, ax = plt.subplots(figsize=figsize)
     ax.axis('off')
 
     mpl_table = ax.table(cellText=cell_text, bbox=[0, 0, 1, 1], colLabels=columns)
 
     mpl_table.auto_set_font_size(False)
-    mpl_table.set_fontsize(14)
+    mpl_table.set_fontsize(FONT_SIZE)
 
     for i in range(len(columns)):
         mpl_table.auto_set_column_width(i)
@@ -57,6 +67,6 @@ def old_generate_image(table_raw: List[List[Any]], columns: List[str]) -> io.Byt
 
     fig.tight_layout()
     buf = io.BytesIO()
-    fig.savefig(buf, format='png', dpi=300)
+    fig.savefig(buf, format='png', dpi=DPI)
     buf.seek(0)
     return buf
