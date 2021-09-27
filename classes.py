@@ -110,9 +110,9 @@ class ChileExpressRaw(RawDataScrapper):
             {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:78.0) Gecko/20100101 Firefox/78.0',
              'Ocp-Apim-Subscription-Key': "7b878d2423f349e3b8bbb9b3607d4215"
              })
-        s.get("https://centrodeayuda.chilexpress.cl/seguimiento/712437989605")
+        s.get(f"https://centrodeayuda.chilexpress.cl/seguimiento/{self.cod}")
         res = s.get(
-            "https://services.wschilexpress.com/agendadigital/api/v3/Tracking/GetTracking?gls_Consulta=712437989605")
+            f"https://services.wschilexpress.com/agendadigital/api/v3/Tracking/GetTracking?gls_Consulta={self.cod}")
         data = res.json()
         last = data['ListTracking'][0]
 
