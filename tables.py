@@ -1,9 +1,8 @@
 import io
-import math
 from typing import List, Any
 
-import plotly.figure_factory as ff
 import matplotlib.pyplot as plt
+import plotly.figure_factory as ff
 import six
 
 
