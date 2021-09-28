@@ -115,7 +115,9 @@ class ChileExpressRaw(RawDataScrapper):
             f"https://services.wschilexpress.com/agendadigital/api/v3/Tracking/GetTracking?gls_Consulta={self.cod}")
         data = res.json()
         last = data['ListTracking'][0]
-
-        updated_at = datetime.fromisoformat(last["fec_track"])
+        try:
+            updated_at = datetime.fromisoformat(last["fec_track"])
+        except ValueError:
+            updated_at = datetime.strptime(last["fec_track"], '%Y-%m-%dT%H:%M:%S.%f')
 
         return f"{last['gls_tracking']} {updated_at.strftime('%Y-%m-%d %H:%M')}"
