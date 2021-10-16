@@ -121,3 +121,34 @@ class ChileExpressRaw(RawDataScrapper):
             updated_at = datetime.strptime(last["fec_track"], '%Y-%m-%dT%H:%M:%S.%f')
 
         return f"{last['gls_tracking']} {updated_at.strftime('%Y-%m-%d %H:%M')}"
+
+
+class UPSRaw(RawDataScrapper):
+    def get_data(self) -> str:
+        import requests
+
+        s = requests.Session()
+        s.get("https://www.ups.com/track?loc=es_CL&requester=ST/")
+
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:92.0) Gecko/20100101 Firefox/92.0',
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language': 'es-CL,es;q=0.8,en-US;q=0.5,en;q=0.3',
+            'Referer': 'https://www.ups.com/track?loc=es_CL&requester=ST/',
+            'X-XSRF-TOKEN': s.cookies.get("X-XSRF-TOKEN-ST"),
+            'Origin': 'https://www.ups.com',
+            'DNT': '1',
+            'Connection': 'keep-alive',
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'same-origin',
+            'Sec-GPC': '1',
+            'Pragma': 'no-cache',
+            'Cache-Control': 'no-cache',
+        }
+
+        data = {"Locale": "es_CL", "TrackingNumber": [self.cod]}
+
+        response = s.post('https://www.ups.com/track/api/Track/GetStatus?loc=es_CL', headers=headers, json=data)
+        result = response.json()
+        return result['trackDetails'][-1]['packageStatus']

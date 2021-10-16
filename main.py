@@ -17,7 +17,7 @@ from telegram.ext import Updater, Job, ConversationHandler, CommandHandler, Mess
 
 # Enable logging
 # noinspection PyUnresolvedReferences
-from classes import RawDataScrapper, DevDataScrapper, BluexRaw, PullmanBusCargoRaw, StarkenRaw, ChileExpressRaw
+from classes import RawDataScrapper, DevDataScrapper, BluexRaw, PullmanBusCargoRaw, StarkenRaw, ChileExpressRaw, UPSRaw
 from models import JobModel
 from tables import old_generate_image
 
@@ -60,7 +60,7 @@ else:
         'Bluex': lambda code: BluexRaw(code),
         'PullmanBusCargo': lambda code: PullmanBusCargoRaw(code),
         'Starken': lambda code: StarkenRaw(code),
-
+        'UPS': lambda code: UPSRaw(code)
     }
 keyboard_currier_keyboard = [[k] for k in dispatcher.keys()]
 currier_regex = f"^({'|'.join(dispatcher.keys())})$"
