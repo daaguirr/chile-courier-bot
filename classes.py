@@ -12,6 +12,9 @@ from coolname import generate_slug
 
 
 # noinspection PyShadowingNames,PyUnusedLocal
+from requests.structures import CaseInsensitiveDict
+
+
 def signal_handler(signal, frame):
     print("\nprogram exiting gracefully")
     sys.exit(0)
@@ -44,29 +47,30 @@ class BluexRaw(RawDataScrapper):
     cod: str
 
     def get_data(self) -> str:
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:87.0) Gecko/20100101 Firefox/87.0',
-            'Accept': 'application/json, text/javascript, */*; q=0.01',
-            'Accept-Language': 'es-CL,es;q=0.8,en-US;q=0.5,en;q=0.3',
-            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-            'X-Requested-With': 'XMLHttpRequest',
-            'Origin': 'https://www.bluex.cl',
-            'DNT': '1',
-            'Connection': 'keep-alive',
-            'Referer': 'https://www.bluex.cl/seguimiento/?n_seguimiento=6899442620',
-            'Sec-GPC': '1',
-            'Pragma': 'no-cache',
-            'Cache-Control': 'no-cache',
-            'TE': 'Trailers',
-        }
+        url = "https://www.blue.cl/wp-admin/admin-ajax.php"
 
-        data = {
-            'action': 'getTrackingInfo',
-            'n_seguimiento': self.cod
-        }
+        headers = CaseInsensitiveDict()
+        headers["User-Agent"] = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:95.0) Gecko/20100101 Firefox/95.0"
+        headers["Accept"] = "application/json, text/javascript, */*; q=0.01"
+        headers["Accept-Language"] = "es-CL,es;q=0.8,en-US;q=0.5,en;q=0.3"
+        headers["Accept-Encoding"] = "gzip, deflate, br"
+        headers["Content-Type"] = "application/x-www-form-urlencoded; charset=UTF-8"
+        headers["X-Requested-With"] = "XMLHttpRequest"
+        headers["Origin"] = "https://www.blue.cl"
+        headers["DNT"] = "1"
+        headers["Connection"] = "keep-alive"
+        headers["Referer"] = f"https://www.blue.cl/seguimiento/?n_seguimiento={self.cod}"
+        headers["Sec-Fetch-Dest"] = "empty"
+        headers["Sec-Fetch-Mode"] = "cors"
+        headers["Sec-Fetch-Site"] = "same-origin"
+        headers["Sec-GPC"] = "1"
+        headers["Pragma"] = "no-cache"
+        headers["Cache-Control"] = "no-cache"
+        headers["TE"] = "trailers"
 
-        response = requests.post('https://www.bluex.cl/wp-admin/admin-ajax.php', headers=headers, data=data)
+        data = f"action=getTrackingInfo&n_seguimiento={self.cod}"
 
+        response = requests.post(url, headers=headers, data=data)
         response_data = response.json()["data"]
         data_raw = json.loads(response_data[0])
 
